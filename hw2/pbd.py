@@ -473,19 +473,35 @@ while True:
     for i in range(n_vertices_x):
         for j in range(n_vertices_y-1):
             gui.line(x[mesh(i,j)],x[mesh(i,j+1)],radius=1.5,color=0x00BFFF)
+            gui.line(x1[mesh(i,j)],x1[mesh(i,j+1)],radius=1.0,color=0xFF0000)
     for i in range(n_vertices_x-1):
         for j in range(n_vertices_y):
             gui.line(x[mesh(i,j)],x[mesh(i+1,j)],radius=1.5,color=0x00BFFF)
+            gui.line(x1[mesh(i,j)],x1[mesh(i+1,j)],radius=1.0,color=0xFF0000)
     for i in range(n_vertices_x-1):
         for j in range(n_vertices_y-1):
             gui.line(x[mesh(i,j)],x[mesh(i+1,j+1)],radius=1.0,color=0x00BFFF)
+            gui.line(x1[mesh(i,j)],x1[mesh(i+1,j+1)],radius=1.5,color=0xFF0000)
     for i in range(1,n_vertices_x):
         for j in range(0,n_vertices_y-1):
             gui.line(x[mesh(i,j)],x[mesh(i-1,j+1)],radius=1.0,color=0x00BFFF)
+            gui.line(x1[mesh(i,j)],x1[mesh(i-1,j+1)],radius=1.5,color=0xFF0000)
 
 
-
-
-    # pixel = gui.get_image()
-    # video_manager.write_frame(pixel)
-    # video_manager.make_video(gif=True, mp4=True)
+    for i in range(tank_size_x):
+        for j in range(tank_size_y-1):
+            gui.line(xt[mesh(i,j)],xt[mesh(i,j+1)],radius=1.2,color=0x000000)
+            gui.line(xt1[mesh(i,j)],xt1[mesh(i,j+1)],radius=1.2,color=0x000000)
+    for i in range(tank_size_x-1):
+        for j in range(tank_size_y):
+            gui.line(xt[mesh(i,j)],xt[mesh(i+1,j)],radius=1.2,color=0x000000)
+            gui.line(xt1[mesh(i,j)],xt1[mesh(i+1,j)],radius=1.2,color=0x000000)
+    for i in range(tank_size_x-1):
+        for j in range(tank_size_y-1):
+            gui.line(xt[mesh(i,j)],xt[mesh(i+1,j+1)],radius=1.2,color=0x000000)
+            gui.line(xt1[mesh(i,j)],xt1[mesh(i+1,j+1)],radius=1.2,color=0x000000)
+    for i in range(1,tank_size_x):
+        for j in range(0,tank_size_y-1):
+            gui.line(xt[mesh(i,j)],xt[mesh(i-1,j+1)],radius=1.2,color=0x000000)
+            gui.line(xt1[mesh(i,j)],xt1[mesh(i-1,j+1)],radius=1.2,color=0x000000)
+    gui.show()
