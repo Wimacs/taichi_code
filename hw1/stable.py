@@ -2,7 +2,7 @@ import taichi as ti
 import numpy as np
 import time
 
-res = 700
+res = 500
 dx = 1.0
 inv_dx = 1.0 / dx
 half_inv_dx = 0.5 * inv_dx
@@ -15,7 +15,7 @@ debug = False
 
 assert res > 2
 
-ti.init(arch=ti.opengl)
+ti.init(arch=ti.cuda)
 
 _velocities = ti.Vector(2, dt=ti.f32, shape=(res, res))
 _new_velocities = ti.Vector(2, dt=ti.f32, shape=(res, res))
@@ -27,9 +27,9 @@ color_buffer = ti.Vector(3, dt=ti.f32, shape=(res, res))
 _dye_buffer = ti.Vector(3, dt=ti.f32, shape=(res, res))
 _new_dye_buffer = ti.Vector(3, dt=ti.f32, shape=(res, res))
 
-Mac = False
+Mac = True
 rk = 2
-MacClip = False
+MacClip = True
 
 class TexPair:
     def __init__(self, cur, nxt):
@@ -286,7 +286,7 @@ def reset():
 
 def main():
     result_dir = './rk=2'
-    video_manger = ti.VideoManager(output_dir=result_dir, framerate=30, automatic_build=False)
+    # video_manger = ti.VideoManager(output_dir=result_dir, framerate=30, automatic_build=False)
 
     global debug
     gui = ti.GUI('Stable-Fluid', (res, res))
@@ -305,18 +305,16 @@ def main():
                 paused = not paused
             elif e.key == 'd':
                 debug = not debug
-        if (cnt >= 1000):
-            break
         if not paused:
             step(cnt)
 
         
         img = color_buffer.to_numpy()
-        video_manger.write_frame(img)
+        # video_manger.write_frame(img)
         gui.set_image(img)
         gui.show()
     
-    video_manger.make_video(gif=True, mp4=True)
+    # video_manger.make_video(gif=True, mp4=True)
 
 
 if __name__ == '__main__':
