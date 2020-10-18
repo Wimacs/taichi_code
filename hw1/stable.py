@@ -6,16 +6,23 @@ res = 500
 dx = 1.0
 inv_dx = 1.0 / dx
 half_inv_dx = 0.5 * inv_dx
-dt = 0.02
-p_jacobi_iters = 100
+dt = 0.009
+p_jacobi_iters = 1000
 f_strength = 30000.0
-dye_decay = 0.9
+dye_decay = 0.97
 eps = 0.002
 debug = False
 
+circle_pos = [0.18,0.5]
+circle_r = 15
+
+SOLID = 0
+AIR = 1
+FLUID = 2
+
 assert res > 2
 
-ti.init(arch=ti.cuda)
+ti.init(arch=ti.opengl)
 
 _velocities = ti.Vector(2, dt=ti.f32, shape=(res, res))
 _new_velocities = ti.Vector(2, dt=ti.f32, shape=(res, res))
@@ -26,6 +33,8 @@ _new_pressures = ti.var(dt=ti.f32, shape=(res, res))
 color_buffer = ti.Vector(3, dt=ti.f32, shape=(res, res))
 _dye_buffer = ti.Vector(3, dt=ti.f32, shape=(res, res))
 _new_dye_buffer = ti.Vector(3, dt=ti.f32, shape=(res, res))
+grid_type = ti.var(dt=ti.f32, shape=(res,res))
+
 
 Mac = True
 rk = 2
@@ -124,7 +133,8 @@ def advect(vf: ti.template(), qf: ti.template(), new_qf: ti.template(), is_dyes 
             #if (i>j):
                 # print(i,j)
             if (ti.static(is_dyes)) :
-                new_qf[i, j] = new_qf[i, j] + 0.5 * (qf[i, j] - _new_aux_dyes[i ,j])
+                if (grid_type[i, j] != SOLID):
+                    new_qf[i, j] = new_qf[i, j] + 0.5 * (qf[i, j] - _new_aux_dyes[i ,j])
             else :
                 new_qf[i, j] = new_qf[i, j] + 0.5 * (qf[i, j] - _new_aux_velocities[i ,j])
             if (ti.static(MacClip)) :
@@ -159,10 +169,14 @@ def apply_impulse(vf: ti.template(), dyef: ti.template()):
             # add dye
             dc = dyef[i, j]
             dc += ti.exp(-d2 * inv_dye_denom) * ti.Vector(
-                [1.0, 1.0, 1.0])
+                [1.0, 1.0, 0.0])
             dc *= dye_decay
             dyef[i, j] = dc
 
+@ti.kernel
+def apply_gravity():
+    for i,j in _velocities:
+        _velocities[i, j] += [0.1,0]
 
 @ti.kernel
 def divergence(vf: ti.template()):
@@ -172,14 +186,22 @@ def divergence(vf: ti.template()):
         vb = sample(vf, i, j - 1)[1]
         vt = sample(vf, i, j + 1)[1]
         vc = sample(vf, i, j)
-        if i == 0:
-            vl = -vc[0]
-        if i == res - 1:
-            vr = -vc[0]
-        if j == 0:
-            vb = -vc[1]
-        if j == res - 1:
-            vt = -vc[1]
+        # if i == 0:
+        #     vl = -vc[0]
+        # if i == res - 1:
+        #     vr = -vc[0]
+        # if j == 0:
+        #     vb = -vc[0]
+        # if j == res - 1:
+        #     vt = -vc[0]
+        if grid_type[i, j] == SOLID and grid_type[i+1, j] == FLUID:
+            vl = 0
+        if grid_type[i, j] == SOLID and grid_type[i-1, j] == FLUID:
+            vr = 0
+        if grid_type[i, j] == SOLID and grid_type[i, j+1] == FLUID:
+            vb = 0
+        if grid_type[i, j] == SOLID and grid_type[i, j-1] == FLUID:
+            vt = 0
         velocity_divs[i, j] = (vr - vl + vt - vb) * half_inv_dx
 
 @ti.kernel
@@ -211,6 +233,7 @@ def pressure_jacobi(pf: ti.template(), new_pf: ti.template()):
         pr = sample(pf, i + 1, j)
         pb = sample(pf, i, j - 1)
         pt = sample(pf, i, j + 1)
+        p = sample(pf ,i, j)
         div = velocity_divs[i, j]
         new_pf[i, j] = (pl + pr + pb + pt + p_alpha * div) * 0.25
 
@@ -245,17 +268,19 @@ def fill_color_v3(vf: ti.template()):
 def fill_color_s(sf: ti.template()):
     for i, j in sf:
         s = abs(sf[i, j])
-        color_buffer[i, j] = ti.Vector([s/10, 0,255-s/10])
+        color_buffer[i, j] = ti.Vector([s, 0,255-s])
+        #print(s)
 
 
 def step(cnt):
+    apply_gravity()
     advect(velocities_pair.cur, velocities_pair.cur, velocities_pair.nxt,False)
     advect(velocities_pair.cur, dyes_pair.cur, dyes_pair.nxt,True)
     velocities_pair.swap()
     dyes_pair.swap()
 
-    if (cnt < 6) :
-        apply_impulse(velocities_pair.cur, dyes_pair.cur)
+    #if (cnt < 6) :
+    apply_impulse(velocities_pair.cur, dyes_pair.cur)
 
     divergence(velocities_pair.cur)
     for _ in range(p_jacobi_iters):
@@ -265,7 +290,7 @@ def step(cnt):
     subtract_gradient(velocities_pair.cur, pressures_pair.cur)
     curl(velocities_pair.cur)
     fill_color_v3(dyes_pair.cur)
-    #fill_color_s(velocity_curls)
+    # fill_color_s(velocity_curls)
     #fill_color_v2(velocities_pair.cur)
 
     if debug:
@@ -282,6 +307,13 @@ def reset():
     pressures_pair.cur.fill(0.0)
     dyes_pair.cur.fill(ti.Vector([0, 0, 0]))
     color_buffer.fill(ti.Vector([0, 0, 0]))
+    grid_type.fill(FLUID)
+    for i, j in ti.ndrange(res, res):
+        # if i == 0 or i == res-1 or j == 0 or j== res-1:
+        #     grid_type[i, j] = SOLID
+        if ti.Vector([[i, j] - circle_pos]).norm() < circle_r * circle_r:
+            grid_type[i, j] = SOLID
+    
 
 
 def main():
@@ -290,8 +322,17 @@ def main():
 
     global debug
     gui = ti.GUI('Stable-Fluid', (res, res))
+    
     paused = False
     cnt = 0
+    grid_type.fill(FLUID)
+    for i, j in ti.ndrange(res, res):
+        # if i == 0 or i == res-1 or j == 0 or j== res-1:
+        #     grid_type[i, j] = SOLID
+        if ti.Vector([i - circle_pos[0] * res, j - circle_pos[1] * res]).norm() < circle_r:
+            grid_type[i, j] = SOLID
+
+
     while True:
         cnt += 1
         if gui.get_event(ti.GUI.PRESS):
@@ -307,11 +348,12 @@ def main():
                 debug = not debug
         if not paused:
             step(cnt)
-
+        
         
         img = color_buffer.to_numpy()
         # video_manger.write_frame(img)
         gui.set_image(img)
+        gui.circle(circle_pos,color = 0xDC143C,radius = circle_r)
         gui.show()
     
     # video_manger.make_video(gif=True, mp4=True)
