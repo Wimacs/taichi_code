@@ -71,7 +71,7 @@ for i in range(tank_size_x):
         vt1[t] = [0, 0]
 
 
-gui = ti.GUI("PBD", (640, 640), background_color=0xF8F8FF)
+gui = ti.GUI("PBD", (640, 640), background_color=0xFFFFFF)
 
 @ti.kernel
 def prediction():
@@ -437,6 +437,7 @@ def update():
 
 result_dir = "./results"
 video_manager = ti.VideoManager(output_dir=result_dir, framerate=24, automatic_build=False)
+frame = 0
 while True:
     prediction()
     gen_constraint()
@@ -523,4 +524,6 @@ while True:
         for j in range(0,tank_size_y-1):
             gui.line(xt[mesh(i,j)],xt[mesh(i-1,j+1)],radius=0.6,color=0x000000)
             gui.line(xt1[mesh(i,j)],xt1[mesh(i-1,j+1)],radius=0.6,color=0x000000)
+    gui.show(f'{frame:06d}.png')
     gui.show()
+    frame += 1

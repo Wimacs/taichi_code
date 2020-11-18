@@ -1,3 +1,4 @@
+from matplotlib.pyplot import grid
 import taichi as ti
 import numpy as np
 import time
@@ -169,7 +170,7 @@ def apply_impulse(vf: ti.template(), dyef: ti.template()):
             # add dye
             dc = dyef[i, j]
             dc += ti.exp(-d2 * inv_dye_denom) * ti.Vector(
-                [1.0, 1.0, 0.0])
+                [1.0, 0.0, 0.0])
             dc *= dye_decay
             dyef[i, j] = dc
 
@@ -313,6 +314,10 @@ def reset():
         #     grid_type[i, j] = SOLID
         if ti.Vector([[i, j] - circle_pos]).norm() < circle_r * circle_r:
             grid_type[i, j] = SOLID
+        if 50 < i < 70 and 20 < j < 40:
+            grid_type[i, j] = SOLID
+        if i==0 or i== res-1 or j==0 or j==res-1:
+            grid_type[i, j] =SOLID
     
 
 
@@ -331,6 +336,12 @@ def main():
         #     grid_type[i, j] = SOLID
         if ti.Vector([i - circle_pos[0] * res, j - circle_pos[1] * res]).norm() < circle_r:
             grid_type[i, j] = SOLID
+        
+        if 200 < i < 250 and 100 < j < 300:
+            grid_type[i, j] = SOLID
+        
+        if i==0 or i== res-1 or j==0 or j==res-1:
+            grid_type[i, j] =SOLID
 
 
     while True:
@@ -354,6 +365,7 @@ def main():
         # video_manger.write_frame(img)
         gui.set_image(img)
         gui.circle(circle_pos,color = 0xDC143C,radius = circle_r)
+        gui.rect([(200),(250)/res], [100/res,300/res], radius = 1, color = 0xDC143C)
         gui.show()
     
     # video_manger.make_video(gif=True, mp4=True)
